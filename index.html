@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>每日財經早報</title>
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#1f2a37;--muted:#5f6b7a;--line:#dde4ee;--navy:#0f1f3d;--blue:#2f5fb3;--up:#d93025;--upbg:#fde8e6;--dn:#0f8a4a;--dnbg:#e3f5ea;--neu:#5f6b7a;--neubg:#eef1f5;--soft:#f6f8fb}
+@media (prefers-color-scheme:dark){:root{--bg:#10151d;--card:#18202b;--ink:#e6ebf2;--muted:#9aa6b5;--line:#2a3442;--navy:#e6ebf2;--blue:#7da6ef;--up:#ff6b5e;--upbg:#3a1f1d;--dn:#3fc47f;--dnbg:#173024;--neu:#9aa6b5;--neubg:#232c38;--soft:#1e2733}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.6}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.hero{background:linear-gradient(0deg,var(--card),var(--card));border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+.pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:700}
+.badge{background:#ffd54f;color:#0f1f3d}
+h1{font-size:26px;margin:8px 0 0;color:var(--navy)}
+.sub{color:var(--blue);font-size:13px;font-weight:600}
+.take{border-left:5px solid #f5b800;background:var(--soft);border-radius:8px;padding:12px;margin-top:12px;font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card h2{font-size:17px;margin:0 0 12px;color:var(--navy)}
+.focus{background:#fff7d6;border:2px solid #ffd54f;color:#3d3200}
+.focus h2{color:#7a5a00}
+@media (prefers-color-scheme:dark){.focus{background:#2e2810;color:#f3e6b0;border-color:#8a7020}.focus h2{color:#ffd54f}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:14px}
+.kpi{border-radius:12px;padding:10px;text-align:center}
+.kpi .v{font-size:20px;font-weight:800}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.mini{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:9px}
+.mini .n{font-size:12px;color:var(--muted)}
+.mini .v{font-size:16px;font-weight:700}
+.mini .u{font-size:11px;color:var(--muted);font-weight:400}
+.grp{font-size:14px;font-weight:700;color:var(--blue);margin:12px 0 6px}
+.news{border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:12px;margin-bottom:10px;background:var(--soft)}
+.react{background:var(--neubg);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px}
+.cal{display:flex;gap:10px;margin-bottom:9px}
+.cal .t{flex:0 0 92px;background:#e8effc;border:1px solid #c3d4f3;border-radius:8px;text-align:center;font-size:12px;font-weight:700;color:#0f1f3d;padding:6px 2px;height:fit-content}
+.box{border-radius:8px;padding:9px 11px;margin-bottom:7px;font-size:14px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:520px){.two{grid-template-columns:1fr}}
+.small{font-size:12px;color:var(--muted)}
+.tabs button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:18px;padding:6px 14px;margin:0 6px 8px 0;font-size:14px;cursor:pointer}
+.tabs button.on{background:var(--ink);color:var(--card)}
+svg text{fill:var(--muted);font-size:11px}
+a{color:var(--blue)}
+table.h{width:100%;border-collapse:collapse;font-size:13px}
+table.h th,table.h td{padding:6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+table.h th:first-child,table.h td:first-child{text-align:left}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">載入中…</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(v,dp)=>v==null?'—':Number(v).toLocaleString('en-US',{minimumFractionDigits:dp,maximumFractionDigits:dp});
+function chgPill(r){
+  const c=r.chg; if(c==null) return '';
+  let up,txt;
+  if(r.id==='twd'){up=c<0;txt=(c<0?'升':'貶')+' '+Math.abs(c*100).toFixed(1)+' 分';}
+  else if(r.unit==='%'&&r.chgKind==='abs'){up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.round(Math.abs(c)*100)+' bp';}
+  else if(r.chgKind==='pct'){up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.abs(c).toFixed(2)+'%';}
+  else {up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.abs(c).toLocaleString('en-US');}
+  const [col,bg]=c===0?['var(--neu)','var(--neubg)']:up?['var(--up)','var(--upbg)']:['var(--dn)','var(--dnbg)'];
+  return `<span class="pill" style="background:${bg};color:${col}">${txt}</span>`;
+}
+async function load(n){const r=await fetch('data/'+n+'.json?'+Date.now());return r.json();}
+Promise.all(['brief','snapshot','history'].map(load)).then(([B,S,H])=>render(B,S,H)).catch(e=>{$('#app').textContent='資料載入失敗：'+e});
+function render(B,S,H){
+  const sec=s=>B.filter(r=>r.section===s).sort((a,b)=>a.ord-b.ord);
+  const one=s=>(sec(s)[0]||{});
+  const SM=Object.fromEntries(S.map(r=>[r.id,r]));
+  const meta=one('meta');
+  const [yy,mm,dd]=meta.tag.split('-').map(Number);const d=new Date(Date.UTC(yy,mm-1,dd));d.getMonth=d.getUTCMonth;d.getDate=d.getUTCDate;d.getDay=d.getUTCDay;
+  const wk='日一二三四五六'[d.getDay()];
+  let h=`<div class="hero"><span class="pill badge">📊 每日財經早報</span>
+  <h1>${d.getMonth()+1} 月 ${d.getDate()} 日・週${wk}</h1>
+  <div class="sub">${esc(meta.text)}</div>
+  <div class="take">💬 ${esc(one('take').text)}</div></div>`;
+  h+=`<div class="card focus"><h2>🎯 今天最該盯</h2>${esc(one('focus').text)}</div>`;
+  // KPIs
+  const kp=['taiex','ixic','sox','btc','us10y','twd'].filter(k=>SM[k]);
+  h+='<div class="kpis">'+kp.map(k=>{const r=SM[k];const up=r.id==='twd'?r.chg<0:r.chg>0;const col=r.chg==null||r.chg===0?'var(--neu)':up?'var(--up)':'var(--dn)';const bg=r.chg==null||r.chg===0?'var(--neubg)':up?'var(--upbg)':'var(--dnbg)';
+    return `<div class="kpi" style="background:${bg}"><div class="small" style="color:var(--ink)">${esc(r.name)}</div><div class="v" style="color:${col}">${fmt(r.value,r.dp)}${r.unit==='%'?'%':''}</div>${chgPill(r)}<div class="small">${esc(r.asof)}</div></div>`}).join('')+'</div>';
+  // chart
+  h+=`<div class="card"><h2>📉 累計漲跌幅比較</h2><div class="tabs" id="tabs"></div><div class="small">每條線以期間內第一個有收盤價的日子為 0%；休市日沒有點，線直接連到下一個交易日。「全部」從加權指數 10/6 歷史最高收盤起算。</div><div id="chart"></div></div>`;
+  // numbers
+  const groups=[...new Set(S.map(r=>r.group))];
+  h+='<div class="card"><h2>📈 市場數字</h2>'+groups.map(g=>`<div class="grp">${esc(g)}</div><div class="grid">`+S.filter(r=>r.group===g).map(r=>`<div class="mini" title="${esc(r.note)}"><div class="n">${esc(r.name)}</div><div class="v">${fmt(r.value,r.dp)} <span class="u">${esc(r.unit)}</span></div>${chgPill(r)}${r.note?`<div class="small" style="margin-top:4px">${esc(r.note)}</div>`:''}</div>`).join('')+'</div>').join('')+'</div>';
+  h+=`<div class="card"><h2>🗳️ 剛落地的大事</h2>${esc(one('landed').text)}</div>`;
+  const T={up:['var(--up)','var(--upbg)','🔺利多'],down:['var(--dn)','var(--dnbg)','🔻利空'],mixed:['var(--neu)','var(--neubg)','◆中性']};
+  h+='<div class="card"><h2>📰 重大新聞</h2>'+sec('news').map((n,i)=>{const [c,bg,l]=T[n.tone]||T.mixed;return `<div class="news" style="border-left-color:${c}"><b style="color:var(--muted);font-size:20px">0${i+1}</b> <span class="pill" style="background:${bg};color:${c}">${l}</span> <span class="pill" style="background:#e8effc;color:#2f5fb3">#${esc(n.tag)}</span><div style="margin-top:6px">${esc(n.text)}</div><div class="react">📊 市場反應：${esc(n.a)}</div></div>`}).join('')+'</div>';
+  h+='<div class="card"><h2>🗓️ 宏觀日曆</h2>'+sec('calendar').map(c=>{const [ev,why]=c.text.split('——');const a=c.a;const [bg,col]=a==='今天'?['#fde8e6','#d93025']:/倒數 [12] 天/.test(a)?['#fff1dc','#c66a00']:['#e8effc','#2f5fb3'];return `<div class="cal"><div class="t">${esc(c.tag)}</div><div><span class="pill" style="background:${bg};color:${col}">${esc(a)}</span><div style="font-weight:700">${esc(ev)}</div><div class="small">${esc(why||'')}</div></div></div>`}).join('')+'</div>';
+  const ins=sec('insight');
+  h+='<div class="card"><h2>💡 洞察</h2>'+ins.map(r=>`<div class="box" style="background:var(--soft)"><b>${esc(r.tag)}</b><br>${esc(r.text)}</div>`).join('')+'</div>';
+  h+='<div class="card"><h2>🇹🇼 對台股的影響</h2>'+sec('tw').map(t=>{const [bg,c,l]=t.tone==='up'?['var(--upbg)','var(--up)','📈 ']:t.tone==='down'?['var(--dnbg)','var(--dn)','📉 ']:['var(--neubg)','var(--blue)','🔍 '];return `<div class="box" style="background:${bg}"><b style="color:${c}">${l}${esc(t.tag)}</b><br>${esc(t.text)}</div>`}).join('')+'</div>';
+  const bd=sec('board');
+  h+='<div class="card"><h2>⚔️ 多空對決</h2>'+bd.map(r=>`<div class="box" style="background:var(--soft)"><b>${esc(r.tag)}</b><br>${esc(r.text)}</div>`).join('')+'</div>';
+  const L={'觸發':['🔴','var(--up)','var(--upbg)'],'觀察中':['🟠','#c66a00','#fff1dc'],'未觸發':['🟢','var(--dn)','var(--dnbg)']};
+  h+='<div class="card"><h2>🚨 警戒燈號</h2>'+sec('alert').map(a=>{const [i,c,bg]=L[a.b]||L['觀察中'];return `<div class="box" style="background:${bg}"><b>${i} ${esc(a.tag)}</b> <span class="pill" style="border:1px solid ${c};color:${c}">${esc(a.b)}</span><br>${esc(a.text)}<div class="small">解除：${esc(a.a)}</div></div>`}).join('')+
+    '<h2 style="margin-top:14px">🧭 條件觸發劇本</h2>'+sec('trigger').map(t=>`<div class="box" style="border:1px solid var(--line)">${esc(t.text)}<div class="small" style="color:var(--dn)">✅ 確認：${esc(t.a)}</div><div class="small" style="color:var(--up)">❌ 失效：${esc(t.b)}</div></div>`).join('')+'</div>';
+  // history table
+  const hs=[...H].filter(r=>r.taiex!=null||r.nasdaq!=null).reverse();
+  h+='<div class="card"><h2>🗂️ 每日收盤歷史</h2><div class="scroll"><table class="h"><tr><th>日期</th><th>加權</th><th>那指</th><th>費半</th><th>BTC</th><th>10Y%</th><th>新台幣</th><th>外資(億)</th></tr>'+hs.map(r=>`<tr title="${esc(r.note)}"><td>${r.date.slice(5)}</td><td>${fmt(r.taiex,2)}</td><td>${fmt(r.nasdaq,2)}</td><td>${fmt(r.sox,2)}</td><td>${fmt(r.btc,0)}</td><td>${fmt(r.us10y,2)}</td><td>${fmt(r.twd,3)}</td><td>${fmt(r.foreign,2)}</td></tr>`).join('')+'</table></div></div>';
+  h+='<div class="card small"><b>🧩 資料缺口</b>'+sec('gap').map(g=>`<div>• ${esc(g.text)}</div>`).join('')+'<br><b>🔗 主要來源</b>'+sec('source').map(s=>`<div>• <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.text)}</a></div>`).join('')+'<p style="text-align:center">本報為市場資訊整理，不構成投資建議</p></div>';
+  $('#app').innerHTML=h;
+  // chart
+  const ranges=[['近 10 日',10],['近 30 日',30],['全部',0]];
+  let cur=0;
+  const draw=()=>{
+    const sorted=[...H].sort((a,b)=>a.date<b.date?-1:1);
+    let rows=sorted;
+    if(cur){const last=new Date(sorted[sorted.length-1].date);const from=new Date(last-cur*864e5);rows=sorted.filter(r=>new Date(r.date)>=from);}
+    const series=[['taiex','加權','#2f7de1'],['sox','費半','#10b981'],['nasdaq','那指','#f07033'],['btc','BTC','#e8a700']];
+    const W=760,Ht=320,pl=46,pr=90,pt=14,pb=28;
+    const xs=rows.map(r=>r.date);const x=i=>pl+(W-pl-pr)*(xs.length<2?0:i/(xs.length-1));
+    const lines=series.map(([k,n,c])=>{const pts=[];let base=null;rows.forEach((r,i)=>{if(r[k]!=null){if(base==null)base=r[k];pts.push([i,(r[k]/base-1)*100]);}});return {k,n,c,pts};});
+    const all=lines.flatMap(l=>l.pts.map(p=>p[1])).concat([0]);
+    let lo=Math.floor(Math.min(...all)/5)*5,hi=Math.ceil(Math.max(...all)/5)*5;if(hi===lo)hi=lo+5;
+    const y=v=>pt+(Ht-pt-pb)*(hi-v)/(hi-lo);
+    let s=`<svg viewBox="0 0 ${W} ${Ht}" width="100%" role="img" aria-label="累計漲跌幅">`;
+    for(let v=lo;v<=hi;v+=5){s+=`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" ${v===0?'stroke-width="1.5" stroke="var(--muted)"':''}/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${v>0?'+':''}${v}%</text>`;}
+    const step=Math.max(1,Math.ceil(xs.length/8));xs.forEach((d,i)=>{if(i%step===0)s+=`<text x="${x(i)}" y="${Ht-8}" text-anchor="middle">${+d.slice(5,7)}/${+d.slice(8)}</text>`;});
+    const labels=[];
+    lines.forEach(l=>{if(!l.pts.length)return;s+=`<polyline fill="none" stroke="${l.c}" stroke-width="2.2" points="${l.pts.map(p=>x(p[0])+','+y(p[1])).join(' ')}"/>`;l.pts.forEach(p=>s+=`<circle cx="${x(p[0])}" cy="${y(p[1])}" r="2.6" fill="${l.c}"/>`);const lp=l.pts[l.pts.length-1];labels.push({y:y(lp[1]),t:`${l.n} ${lp[1]>=0?'+':'−'}${Math.abs(lp[1]).toFixed(1)}%`,c:l.c});});
+    labels.sort((a,b)=>a.y-b.y);for(let i=1;i<labels.length;i++)if(labels[i].y-labels[i-1].y<15)labels[i].y=labels[i-1].y+15;
+    labels.forEach(L=>s+=`<text x="${W-pr+8}" y="${L.y+4}" style="fill:${L.c};font-size:12px;font-weight:700">${L.t}</text>`);
+    $('#chart').innerHTML=s+'</svg>';
+    $('#tabs').innerHTML=ranges.map(([n,v])=>`<button class="${v===cur?'on':''}" data-v="${v}">${n}</button>`).join('');
+    $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{cur=+b.dataset.v;draw();});
+  };
+  draw();
+}
+</script>
+</body>
+</html>
