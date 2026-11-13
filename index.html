@@ -46,6 +46,14 @@ table.h{width:100%;border-collapse:collapse;font-size:13px}
 table.h th,table.h td{padding:6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 table.h th:first-child,table.h td:first-child{text-align:left}
 .scroll{overflow-x:auto}
+.nav{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin-bottom:10px;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:18px;padding:7px 14px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.nav button.on{background:var(--blue);border-color:var(--blue);color:var(--card)}
+.page[hidden]{display:none}
+.advice{border:2px solid var(--blue)}
+.stance{display:inline-block;padding:3px 12px;border-radius:14px;font-size:13px;font-weight:700;margin-bottom:8px}
+.empty{color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
@@ -71,26 +79,39 @@ function render(B,S,H){
   const one=s=>(sec(s)[0]||{});
   const SM=Object.fromEntries(S.map(r=>[r.id,r]));
   const meta=one('meta');
+  const HOL=meta.a==='holiday';
   const [yy,mm,dd]=meta.tag.split('-').map(Number);const d=new Date(Date.UTC(yy,mm-1,dd));d.getMonth=d.getUTCMonth;d.getDate=d.getUTCDate;d.getDay=d.getUTCDay;
   const wk='日一二三四五六'[d.getDay()];
   let h=`<div class="hero"><span class="pill badge">📊 每日財經早報</span>
   <h1>${d.getMonth()+1} 月 ${d.getDate()} 日・週${wk}</h1>
-  <div class="sub">${esc(meta.text)}</div>
+  <div class="sub">${esc(meta.text)}${HOL?'　🏖️ 台股休市・新聞版':''}</div>
   <div class="take">💬 ${esc(one('take').text)}</div></div>`;
+  const TABS0=[['overview','總覽'],['market','行情'],['news','新聞・日曆'],['strategy','洞察・監控'],['analysis','數據分析'],['info','資料來源']];
+  const TABS=HOL?[TABS0[2],...TABS0.filter(t=>t[0]!=='news')]:TABS0;
+  h+='<div class="nav" id="nav">'+TABS.map(([k,n])=>`<button data-p="${k}">${n}</button>`).join('')+'</div>';
+  const empty='<div class="empty">下一次早報更新後顯示。</div>';
+  const toneBox=t=>t.tone==='up'?['var(--upbg)','var(--up)']:t.tone==='down'?['var(--dnbg)','var(--dn)']:['var(--neubg)','var(--blue)'];
+  const tagged=s=>{const rows=sec(s);return rows.length?rows.map(t=>{const [bg,c]=toneBox(t);return `<div class="box" style="background:${bg}"><b style="color:${c}">${esc(t.tag)}</b><br>${esc(t.text)}${t.a?`<div class="small">${esc(t.a)}</div>`:''}</div>`}).join(''):empty;};
+  h+='<div class="page" id="p-overview">';
   h+=`<div class="card focus"><h2>🎯 今天最該盯</h2>${esc(one('focus').text)}</div>`;
   // KPIs
   const kp=['taiex','ixic','sox','btc','us10y','twd'].filter(k=>SM[k]);
   h+='<div class="kpis">'+kp.map(k=>{const r=SM[k];const up=r.id==='twd'?r.chg<0:r.chg>0;const col=r.chg==null||r.chg===0?'var(--neu)':up?'var(--up)':'var(--dn)';const bg=r.chg==null||r.chg===0?'var(--neubg)':up?'var(--upbg)':'var(--dnbg)';
     return `<div class="kpi" style="background:${bg}"><div class="small" style="color:var(--ink)">${esc(r.name)}</div><div class="v" style="color:${col}">${fmt(r.value,r.dp)}${r.unit==='%'?'%':''}</div>${chgPill(r)}<div class="small">${esc(r.asof)}</div></div>`}).join('')+'</div>';
+  const adv=sec('advice');
+  h+='<div class="card advice"><h2>🧭 今日操作建議</h2>'+(adv.length?adv.map(r=>{const [bg,c]=toneBox(r);return `${r.tag?`<span class="stance" style="background:${bg};color:${c}">${esc(r.tag)}</span>`:''}<div style="font-weight:700">${esc(r.text)}</div>${r.a?`<div class="box" style="background:var(--soft);margin-top:8px"><b>依據</b><br>${esc(r.a)}</div>`:''}${r.b?`<div class="box" style="background:var(--soft)"><b>風險與失效</b><br>${esc(r.b)}</div>`:''}`}).join(''):empty)+'<div class="small">依每日數據分析整理的參考建議，不保證獲利，請自行評估風險與部位。</div></div>';
+  h+='</div><div class="page" id="p-market" hidden>';
   // chart
   h+=`<div class="card"><h2>📉 累計漲跌幅比較</h2><div class="tabs" id="tabs"></div><div class="small">每條線以期間內第一個有收盤價的日子為 0%；休市日沒有點，線直接連到下一個交易日。「全部」從加權指數 10/6 歷史最高收盤起算。</div><div id="chart"></div></div>`;
   // numbers
   const groups=[...new Set(S.map(r=>r.group))];
   h+='<div class="card"><h2>📈 市場數字</h2>'+groups.map(g=>`<div class="grp">${esc(g)}</div><div class="grid">`+S.filter(r=>r.group===g).map(r=>`<div class="mini" title="${esc(r.note)}"><div class="n">${esc(r.name)}</div><div class="v">${fmt(r.value,r.dp)} <span class="u">${esc(r.unit)}</span></div>${chgPill(r)}${r.note?`<div class="small" style="margin-top:4px">${esc(r.note)}</div>`:''}</div>`).join('')+'</div>').join('')+'</div>';
+  h+='</div><div class="page" id="p-news" hidden>';
   h+=`<div class="card"><h2>🗳️ 剛落地的大事</h2>${esc(one('landed').text)}</div>`;
   const T={up:['var(--up)','var(--upbg)','🔺利多'],down:['var(--dn)','var(--dnbg)','🔻利空'],mixed:['var(--neu)','var(--neubg)','◆中性']};
   h+='<div class="card"><h2>📰 重大新聞</h2>'+sec('news').map((n,i)=>{const [c,bg,l]=T[n.tone]||T.mixed;return `<div class="news" style="border-left-color:${c}"><b style="color:var(--muted);font-size:20px">0${i+1}</b> <span class="pill" style="background:${bg};color:${c}">${l}</span> <span class="pill" style="background:#e8effc;color:#2f5fb3">#${esc(n.tag)}</span><div style="margin-top:6px">${esc(n.text)}</div><div class="react">📊 市場反應：${esc(n.a)}</div></div>`}).join('')+'</div>';
   h+='<div class="card"><h2>🗓️ 宏觀日曆</h2>'+sec('calendar').map(c=>{const [ev,why]=c.text.split('——');const a=c.a;const [bg,col]=a==='今天'?['#fde8e6','#d93025']:/倒數 [12] 天/.test(a)?['#fff1dc','#c66a00']:['#e8effc','#2f5fb3'];return `<div class="cal"><div class="t">${esc(c.tag)}</div><div><span class="pill" style="background:${bg};color:${col}">${esc(a)}</span><div style="font-weight:700">${esc(ev)}</div><div class="small">${esc(why||'')}</div></div></div>`}).join('')+'</div>';
+  h+='</div><div class="page" id="p-strategy" hidden>';
   const ins=sec('insight');
   h+='<div class="card"><h2>💡 洞察</h2>'+ins.map(r=>`<div class="box" style="background:var(--soft)"><b>${esc(r.tag)}</b><br>${esc(r.text)}</div>`).join('')+'</div>';
   h+='<div class="card"><h2>🇹🇼 對台股的影響</h2>'+sec('tw').map(t=>{const [bg,c,l]=t.tone==='up'?['var(--upbg)','var(--up)','📈 ']:t.tone==='down'?['var(--dnbg)','var(--dn)','📉 ']:['var(--neubg)','var(--blue)','🔍 '];return `<div class="box" style="background:${bg}"><b style="color:${c}">${l}${esc(t.tag)}</b><br>${esc(t.text)}</div>`}).join('')+'</div>';
@@ -99,11 +120,20 @@ function render(B,S,H){
   const L={'觸發':['🔴','var(--up)','var(--upbg)'],'觀察中':['🟠','#c66a00','#fff1dc'],'未觸發':['🟢','var(--dn)','var(--dnbg)']};
   h+='<div class="card"><h2>🚨 警戒燈號</h2>'+sec('alert').map(a=>{const [i,c,bg]=L[a.b]||L['觀察中'];return `<div class="box" style="background:${bg}"><b>${i} ${esc(a.tag)}</b> <span class="pill" style="border:1px solid ${c};color:${c}">${esc(a.b)}</span><br>${esc(a.text)}<div class="small">解除：${esc(a.a)}</div></div>`}).join('')+
     '<h2 style="margin-top:14px">🧭 條件觸發劇本</h2>'+sec('trigger').map(t=>`<div class="box" style="border:1px solid var(--line)">${esc(t.text)}<div class="small" style="color:var(--dn)">✅ 確認：${esc(t.a)}</div><div class="small" style="color:var(--up)">❌ 失效：${esc(t.b)}</div></div>`).join('')+'</div>';
+  h+='</div><div class="page" id="p-analysis" hidden>';
+  h+='<div class="card"><h2>🔬 每日數據分析</h2>'+tagged('analysis')+'<div class="small">每天早報整理時，以下方每日紀錄計算均線、漲跌幅、外資連續買賣超等數字後撰寫。</div></div>';
   // history table
-  const hs=[...H].filter(r=>r.taiex!=null||r.nasdaq!=null).reverse();
-  h+='<div class="card"><h2>🗂️ 每日收盤歷史</h2><div class="scroll"><table class="h"><tr><th>日期</th><th>加權</th><th>那指</th><th>費半</th><th>BTC</th><th>10Y%</th><th>新台幣</th><th>外資(億)</th></tr>'+hs.map(r=>`<tr title="${esc(r.note)}"><td>${r.date.slice(5)}</td><td>${fmt(r.taiex,2)}</td><td>${fmt(r.nasdaq,2)}</td><td>${fmt(r.sox,2)}</td><td>${fmt(r.btc,0)}</td><td>${fmt(r.us10y,2)}</td><td>${fmt(r.twd,3)}</td><td>${fmt(r.foreign,2)}</td></tr>`).join('')+'</table></div></div>';
-  h+='<div class="card small"><b>🧩 資料缺口</b>'+sec('gap').map(g=>`<div>• ${esc(g.text)}</div>`).join('')+'<br><b>🔗 主要來源</b>'+sec('source').map(s=>`<div>• <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.text)}</a></div>`).join('')+'<p style="text-align:center">本報為市場資訊整理，不構成投資建議</p></div>';
+  const sortedH=[...H].sort((a,b)=>a.date<b.date?-1:1);
+  const hs=sortedH.filter(r=>r.taiex!=null||r.nasdaq!=null).reverse();
+  h+='<div class="card"><h2>🗂️ 每日數據紀錄</h2><div class="small">每個交易日一列，最新的在最上面；外資為買賣超（億元），負數是賣超。</div><div class="scroll"><table class="h"><tr><th>日期</th><th>加權</th><th>那指</th><th>費半</th><th>BTC</th><th>10Y%</th><th>新台幣</th><th>外資(億)</th></tr>'+hs.map(r=>`<tr title="${esc(r.note)}"><td>${r.date.slice(5)}</td><td>${fmt(r.taiex,2)}</td><td>${fmt(r.nasdaq,2)}</td><td>${fmt(r.sox,2)}</td><td>${fmt(r.btc,0)}</td><td>${fmt(r.us10y,2)}</td><td>${fmt(r.twd,3)}</td><td style="color:${r.foreign==null?'inherit':r.foreign>=0?'var(--up)':'var(--dn)'}">${fmt(r.foreign,2)}</td></tr>`).join('')+'</table></div></div>';
+  h+='</div><div class="page" id="p-info" hidden>';
+  h+='<div class="card small"><b>🧩 資料缺口</b>'+sec('gap').map(g=>`<div>• ${esc(g.text)}</div>`).join('')+'<br><b>🔗 主要來源</b>'+sec('source').map(s=>`<div>• <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.text)}</a></div>`).join('')+'</div>';
+  h+='</div><p class="small" style="text-align:center">本報為市場資訊整理與參考建議，不保證獲利</p>';
   $('#app').innerHTML=h;
+  // tabs
+  const show=(k,push)=>{if(!TABS.some(t=>t[0]===k))k=TABS[0][0];document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!=='p-'+k);document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===k));if(push){history.replaceState(null,'','#'+k);window.scrollTo(0,0);}};
+  document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.p,true));
+  show(location.hash.slice(1),false);
   // chart
   const ranges=[['近 10 日',10],['近 30 日',30],['全部',0]];
   let cur=0;
