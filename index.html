@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>每日財經早報</title>
 <style>
-:root{--bg:#eef2f7;--card:#fff;--ink:#1f2a37;--muted:#5f6b7a;--line:#dde4ee;--navy:#0f1f3d;--blue:#2f5fb3;--up:#d93025;--upbg:#fde8e6;--dn:#0f8a4a;--dnbg:#e3f5ea;--neu:#5f6b7a;--neubg:#eef1f5;--soft:#f6f8fb}
-@media (prefers-color-scheme:dark){:root{--bg:#10151d;--card:#18202b;--ink:#e6ebf2;--muted:#9aa6b5;--line:#2a3442;--navy:#e6ebf2;--blue:#7da6ef;--up:#ff6b5e;--upbg:#3a1f1d;--dn:#3fc47f;--dnbg:#173024;--neu:#9aa6b5;--neubg:#232c38;--soft:#1e2733}}
+:root{--bg:#eef2f7;--card:#fff;--ink:#1f2a37;--muted:#5f6b7a;--line:#dde4ee;--navy:#0f1f3d;--blue:#2f5fb3;--up:#d93025;--upbg:#fde8e6;--dn:#0f8a4a;--dnbg:#e3f5ea;--neu:#5f6b7a;--neubg:#eef1f5;--soft:#f6f8fb;--warn:#c66a00;--warnbg:#fff1dc}
+@media (prefers-color-scheme:dark){:root{--bg:#10151d;--card:#18202b;--ink:#e6ebf2;--muted:#9aa6b5;--line:#2a3442;--navy:#e6ebf2;--blue:#7da6ef;--up:#ff6b5e;--upbg:#3a1f1d;--dn:#3fc47f;--dnbg:#173024;--neu:#9aa6b5;--neubg:#232c38;--soft:#1e2733;--warn:#ffb454;--warnbg:#3a2a12}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.6}
 .wrap{max-width:960px;margin:0 auto;padding:16px}
@@ -117,8 +117,8 @@ function render(B,S,H){
   h+='<div class="card"><h2>🇹🇼 對台股的影響</h2>'+sec('tw').map(t=>{const [bg,c,l]=t.tone==='up'?['var(--upbg)','var(--up)','📈 ']:t.tone==='down'?['var(--dnbg)','var(--dn)','📉 ']:['var(--neubg)','var(--blue)','🔍 '];return `<div class="box" style="background:${bg}"><b style="color:${c}">${l}${esc(t.tag)}</b><br>${esc(t.text)}</div>`}).join('')+'</div>';
   const bd=sec('board');
   h+='<div class="card"><h2>⚔️ 多空對決</h2>'+bd.map(r=>`<div class="box" style="background:var(--soft)"><b>${esc(r.tag)}</b><br>${esc(r.text)}</div>`).join('')+'</div>';
-  const L={'觸發':['🔴','var(--up)','var(--upbg)'],'觀察中':['🟠','#c66a00','#fff1dc'],'未觸發':['🟢','var(--dn)','var(--dnbg)']};
-  h+='<div class="card"><h2>🚨 警戒燈號</h2>'+sec('alert').map(a=>{const [i,c,bg]=L[a.b]||L['觀察中'];return `<div class="box" style="background:${bg}"><b>${i} ${esc(a.tag)}</b> <span class="pill" style="border:1px solid ${c};color:${c}">${esc(a.b)}</span><br>${esc(a.text)}<div class="small">解除：${esc(a.a)}</div></div>`}).join('')+
+  const L={'觸發':['🔴','var(--up)','var(--upbg)'],'觀察中':['🟠','var(--warn)','var(--warnbg)'],'未觸發':['🟢','var(--dn)','var(--dnbg)']};
+  h+='<div class="card"><h2>🚨 警戒燈號</h2>'+sec('alert').map(a=>{const [i,c,bg]=L[a.b]||L['觀察中'];return `<div class="box" style="background:${bg};color:var(--ink)"><b>${i} ${esc(a.tag)}</b> <span class="pill" style="border:1px solid ${c};color:${c}">${esc(a.b)}</span><br>${esc(a.text)}<div class="small">解除：${esc(a.a)}</div></div>`}).join('')+
     '<h2 style="margin-top:14px">🧭 條件觸發劇本</h2>'+sec('trigger').map(t=>`<div class="box" style="border:1px solid var(--line)">${esc(t.text)}<div class="small" style="color:var(--dn)">✅ 確認：${esc(t.a)}</div><div class="small" style="color:var(--up)">❌ 失效：${esc(t.b)}</div></div>`).join('')+'</div>';
   h+='</div><div class="page" id="p-analysis" hidden>';
   h+='<div class="card"><h2>🔬 每日數據分析</h2>'+tagged('analysis')+'<div class="small">每天早報整理時，以下方每日紀錄計算均線、漲跌幅、外資連續買賣超等數字後撰寫。</div></div>';
