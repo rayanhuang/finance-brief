@@ -5,7 +5,7 @@
 set -u
 SRC=$(cd "$1" && pwd); MD=$2
 REPO=rayanhuang/finance-brief
-cd "$(dirname "$0")/.." || { echo "FAIL 找不到 repo"; exit 1; }
+cd "${FB_REPO:-$(dirname "$0")/..}" || { echo "FAIL 找不到 repo"; exit 1; }
 for f in brief snapshot history; do python3 -c "import json,sys;json.load(open(sys.argv[1]))" "$SRC/$f.json" || { echo "FAIL $f.json 不是合法 JSON"; exit 1; }; done
 python3 - "$SRC" <<'PY' || { echo "FAIL 公開版仍含私人欄位"; exit 1; }
 import json,sys
