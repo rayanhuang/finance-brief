@@ -4,7 +4,7 @@
 用法：python3 tools/build_email.py <公開版資料夾> <輸出.html>
 brief 的 meta 列 a 為 holiday 時自動改成假日版順序。印出主旨、純文字摘要與 HTML 大小。
 """
-import html, json, os, sys
+import html, json, os, re, sys
 
 UP, UPBG, DN, DNBG, NEU, NEUBG = '#d93025', '#fde8e6', '#0f8a4a', '#e3f5ea', '#5f6b7a', '#eef1f5'
 NAVY, BLUE, INK = '#0f1f3d', '#2f5fb3', '#1f2a37'
@@ -39,8 +39,10 @@ def chg_txt(r):
         return None, NEU, NEUBG
     if r['id'] == 'twd':
         return f"{'升' if c < 0 else '貶'} {abs(c) * 100:.1f} 分", (UP if c < 0 else DN), (UPBG if c < 0 else DNBG)
-    if r.get('unit') == '%' and r.get('chgKind') == 'abs':
+    if r.get('unit') == '%' and r.get('chgKind') == 'abs' and re.match(r'us\d', r['id']):
         t = f"{'▲' if c > 0 else '▼' if c < 0 else ''}{abs(c) * 100:.0f} bp"
+    elif r.get('unit') == '%' and r.get('chgKind') == 'abs':
+        t = f"{'▲' if c > 0 else '▼' if c < 0 else ''}{abs(c):.1f} 個百分點"
     elif r.get('chgKind') == 'pct':
         t = f"{'▲' if c > 0 else '▼' if c < 0 else ''}{abs(c):.2f}%"
     else:
