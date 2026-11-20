@@ -14,7 +14,8 @@ bad={'yageo','e981a','a981_buy','a981_sell','note_p'}
 assert not any(bad & r.keys() for r in h)
 assert not any(r['section'] in ('etf','yageo') for r in b)
 PY
-BR="daily-data-$(TZ=Asia/Taipei date +%Y%m%d-%H%M)"
+# 執行環境有指定開發分支時用 FB_BRANCH，否則每天開新分支
+BR="${FB_BRANCH:-daily-data-$(TZ=Asia/Taipei date +%Y%m%d-%H%M)}"
 git fetch -q origin main && git checkout -q -B "$BR" origin/main || { echo "FAIL git fetch/checkout"; exit 1; }
 cp "$SRC"/brief.json "$SRC"/snapshot.json "$SRC"/history.json data/
 git add data/
