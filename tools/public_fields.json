@@ -1,0 +1,10 @@
+{
+  "說明": "公開版允許出現的欄位、段落與代號（允許清單）。找不到私人設定時 make_public.py 只保留這些；GitHub Actions 自動合併也用它檢查。新增公開欄位時要加在這裡。",
+  "history": ["date", "note", "taiex", "nasdaq", "sox", "btc", "foreign", "twd", "us10y"],
+  "brief": ["meta", "take", "calendar", "advice", "alert", "analysis", "board", "focus", "gap",
+            "insight", "landed", "news", "source", "trigger", "tw"],
+  "snapshot": ["dji", "spx", "ixic", "sox", "vix", "tsm", "nvda", "amd", "aapl", "msft", "taiex", "otc",
+               "tw2330", "tw2454", "tw2308", "tw2317", "tw3711", "tw_turnover", "txf_night", "fini", "sitc",
+               "dealer", "inst", "btc", "eth", "btc_etf", "eth_etf", "fng", "us2y", "us10y", "us30y", "twd",
+               "wti", "brent", "gold", "dxy", "fedwatch"]
+}
