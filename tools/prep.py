@@ -8,6 +8,8 @@
 """
 import argparse, datetime as dt, json, sys, time, urllib.parse, urllib.request
 
+import private
+
 # 證交所公告的休市日（不含週末）。來源：twse.com.tw 市場開休市日期（115、116 年）。
 CLOSED = {
     '2026-12-25',
@@ -21,11 +23,10 @@ YAHOO = [
     ('dji', '^DJI'), ('spx', '^GSPC'), ('ixic', '^IXIC'), ('sox', '^SOX'), ('vix', '^VIX'),
     ('tsm', 'TSM'), ('nvda', 'NVDA'), ('amd', 'AMD'), ('aapl', 'AAPL'), ('msft', 'MSFT'),
     ('taiex', '^TWII'), ('tw2330', '2330.TW'), ('tw2454', '2454.TW'), ('tw2308', '2308.TW'), ('tw2317', '2317.TW'), ('tw3711', '3711.TW'),
-    ('tw2327', '2327.TW'), ('e00981a', '00981A.TW'),
     ('btc', 'BTC-USD'), ('eth', 'ETH-USD'),
     ('us10y', '^TNX'), ('us30y', '^TYX'), ('twd', 'TWD=X'), ('wti', 'CL=F'), ('brent', 'BZ=F'),
     ('gold', 'GC=F'), ('dxy', 'DX-Y.NYB'),
-]
+] + [tuple(x) for x in private.load().get('yahoo', [])]  # 持股行情只寫在私人設定
 UA = {'User-Agent': 'Mozilla/5.0'}
 
 

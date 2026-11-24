@@ -1,6 +1,6 @@
 name: 自動合併每日早報資料 PR
 
-# 只合併「標題以『更新財經早報資料』開頭、由 repo 擁有者從本 repo 分支開出、只改動 data/ 三個 JSON、且不含私人欄位」的 PR。
+# 只合併「標題以『更新財經早報資料』開頭、由 repo 擁有者從本 repo 分支開出、只改動 data/ 三個 JSON、且只含允許公開的欄位」的 PR。
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -23,7 +23,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-      - name: 檢查只改動 data/ 三個 JSON，且都是合法、不含私人內容的公開版
+      - name: 檢查只改動 data/ 三個 JSON，且只含允許公開的欄位
+        id: check
         run: |
           set -euo pipefail
           git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed.txt
@@ -32,20 +33,33 @@ jobs:
           if grep -vxE 'data/(brief|snapshot|history)\.json' changed.txt; then
             echo "有 data/ 三個 JSON 以外的檔案，不自動合併"; exit 1
           fi
+          # 用「允許清單」：只要出現清單外的欄位、段落或代號就不自動合併，
+          # 改由 tools/sync_github.sh 用私人設定檢查後自行合併。私人清單不寫在公開 repo。
           python3 - <<'PY'
-          import json
+          import json, os
           h = json.load(open('data/history.json')); b = json.load(open('data/brief.json')); s = json.load(open('data/snapshot.json'))
-          bad = {'yageo', 'e981a', 'a981_buy', 'a981_sell', 'note_p'}
-          assert not any(bad & r.keys() for r in h), '公開版含私人欄位'
-          assert not any(r['section'] in ('etf', 'yageo') for r in b), '公開版含私人段落'
-          assert not any(r['id'] in ('tw2327', 'e00981a') for r in s), '公開版含私人行情'
-          print('檢查通過')
+          H = {'date', 'note', 'taiex', 'nasdaq', 'sox', 'btc', 'foreign', 'twd', 'us10y'}
+          B = {'meta', 'take', 'calendar', 'advice', 'alert', 'analysis', 'board', 'focus', 'gap',
+               'insight', 'landed', 'news', 'source', 'trigger', 'tw'}
+          S = {'dji', 'spx', 'ixic', 'sox', 'vix', 'tsm', 'nvda', 'amd', 'aapl', 'msft', 'taiex', 'otc',
+               'tw2330', 'tw2454', 'tw2308', 'tw2317', 'tw3711', 'tw_turnover', 'txf_night', 'fini', 'sitc',
+               'dealer', 'inst', 'btc', 'eth', 'btc_etf', 'eth_etf', 'fng', 'us2y', 'us10y', 'us30y', 'twd',
+               'wti', 'brent', 'gold', 'dxy', 'fedwatch'}
+          extra = sorted(set().union(*[r.keys() for r in h]) - H)
+          extra += sorted({r['section'] for r in b if r.get('tone') != 'private'} - B)
+          extra += sorted({r['id'] for r in s} - S)
+          private = any(r.get('tone') == 'private' for r in b)
+          ok = not extra and not private
+          print('檢查通過' if ok else f'有允許清單外的內容 {extra}，不自動合併')
+          open(os.environ['GITHUB_OUTPUT'], 'a').write(f"ok={'true' if ok else 'false'}\n")
           PY
       - name: 合併
+        if: steps.check.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr merge "${{ github.event.pull_request.number }}" --squash --repo "${{ github.repository }}" --match-head-commit "${{ github.event.pull_request.head.sha }}"
       - name: 重新部署公開網站
+        if: steps.check.outputs.ok == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}

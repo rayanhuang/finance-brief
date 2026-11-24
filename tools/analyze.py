@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""每日數據分析：讀 history.json，印出精簡的指標摘要（給排程寫 analysis／advice／yageo 用）。
+"""每日數據分析：讀 history.json，印出精簡的指標摘要（給排程寫分析與持股建議用）。
 
-用法：python3 tools/analyze.py history.json [--cost 870]
---cost 只在需要計算與持股成本距離時傳入；成本不寫在 repo 裡。
+用法：python3 tools/analyze.py history.json
+持股的名稱、股數與成本只寫在私人設定（見 private.py），不寫在這個 repo 裡。
 """
 import argparse, json, statistics
 
-SERIES = [('taiex', '加權'), ('nasdaq', '那指'), ('sox', '費半'), ('btc', 'BTC'), ('yageo', '國巨'), ('e981a', '00981A')]
+import private
+
+HOLD = {h['key']: h for h in private.load().get('holdings', []) if h.get('key')}
+SERIES = [('taiex', '加權'), ('nasdaq', '那指'), ('sox', '費半'), ('btc', 'BTC')] + [(k, h['name']) for k, h in HOLD.items()]
 
 
 def pts(rows, k):
@@ -43,7 +46,6 @@ def corr(h, a, b, n=20):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('history')
-    ap.add_argument('--cost', type=float)
     a = ap.parse_args()
     h = sorted(json.load(open(a.history)), key=lambda r: r['date'])
     out = []
@@ -65,11 +67,14 @@ def main():
         if None not in mas.values():
             order = '多頭排列' if mas[5] > mas[10] > mas[20] else '空頭排列' if mas[5] < mas[10] < mas[20] else '糾結'
             line.append(order)
-        if k == 'yageo':
+        if k in HOLD:
             recent = v[-20:]
             line.append(f'近 20 日高 {max(recent):,.1f}／低 {min(recent):,.1f}')
-            if a.cost:
-                line.append(f'距成本 {a.cost:,.0f} {pct(last, a.cost):+.1f}%，回本需 {pct(a.cost, last):+.1f}%')
+            cost, shares = HOLD[k].get('cost'), HOLD[k].get('shares')
+            if cost:
+                line.append(f'距成本 {cost:,.2f} {pct(last, cost):+.1f}%，回本需 {pct(cost, last):+.1f}%')
+                if shares:
+                    line.append(f'未實現損益約 {(last - cost) * shares:+,.0f}（{shares:,} 股，未計手續費與稅）')
         out.append('；'.join(line))
     f = [x for _, x in pts(h, 'foreign')]
     if f:

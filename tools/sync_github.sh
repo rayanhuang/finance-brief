@@ -4,16 +4,11 @@
 # 只印出最後結果一行：MERGED <PR網址>｜NOCHANGE｜FAIL <原因> [PR網址]
 set -u
 SRC=$(cd "$1" && pwd); MD=$2
+TOOLS=$(cd "$(dirname "$0")" && pwd)
 REPO=rayanhuang/finance-brief
-cd "${FB_REPO:-$(dirname "$0")/..}" || { echo "FAIL 找不到 repo"; exit 1; }
+cd "${FB_REPO:-$TOOLS/..}" || { echo "FAIL 找不到 repo"; exit 1; }
 for f in brief snapshot history; do python3 -c "import json,sys;json.load(open(sys.argv[1]))" "$SRC/$f.json" || { echo "FAIL $f.json 不是合法 JSON"; exit 1; }; done
-python3 - "$SRC" <<'PY' || { echo "FAIL 公開版仍含私人欄位"; exit 1; }
-import json,sys
-h=json.load(open(sys.argv[1]+'/history.json')); b=json.load(open(sys.argv[1]+'/brief.json'))
-bad={'yageo','e981a','a981_buy','a981_sell','note_p'}
-assert not any(bad & r.keys() for r in h)
-assert not any(r['section'] in ('etf','yageo') for r in b)
-PY
+python3 "$TOOLS/make_public.py" --check "$SRC" >/dev/null || { echo "FAIL 公開版仍含私人內容（或找不到私人設定）"; exit 1; }
 # 執行環境有指定開發分支時用 FB_BRANCH，否則每天開新分支
 BR="${FB_BRANCH:-daily-data-$(TZ=Asia/Taipei date +%Y%m%d-%H%M)}"
 git fetch -q origin main && git checkout -q -B "$BR" origin/main || { echo "FAIL git fetch/checkout"; exit 1; }

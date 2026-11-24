@@ -1,15 +1,33 @@
 #!/usr/bin/env python3
-"""從完整版三份 JSON 產生公開版（移除國巨、00981A 與個人持股），並檢查有沒有漏出去。
+"""從完整版三份 JSON 產生公開版（移除個人持股相關內容），並檢查有沒有漏出去。
 
-用法：python3 tools/make_public.py <完整版資料夾> <公開版資料夾>
+用法：
+  python3 tools/make_public.py <完整版資料夾> <公開版資料夾>
+  python3 tools/make_public.py --check <公開版資料夾>   只檢查，不產生
+要移除的段落、代號、欄位與關鍵字都寫在私人設定（見 private.py）；找不到設定就拒絕執行。
 檢查失敗時印出問題列並以代碼 1 結束，請改寫完整版該列（或把 tone 設成 private）後重跑。
 """
 import json, os, re, sys
 
-PRIVATE_SECTIONS = {'etf', 'yageo'}
-PRIVATE_IDS = {'tw2327', 'e00981a'}
-PRIVATE_FIELDS = {'yageo', 'e981a', 'a981_buy', 'a981_sell', 'note_p'}
-LEAK = re.compile(r'00981A|981A|2327|國巨|我的成本|持股成本|220 ?股')
+import private
+
+CFG = private.load(required=True)
+PRIVATE_SECTIONS = set(CFG['private_sections'])
+PRIVATE_IDS = set(CFG['private_ids'])
+PRIVATE_FIELDS = set(CFG['private_fields'])
+LEAK = re.compile(CFG['leak'])
+
+
+def check(d):
+    load = lambda n: json.load(open(os.path.join(d, n + '.json')))
+    h, b, s = load('history'), load('brief'), load('snapshot')
+    bad = [f"history {r.get('date')}" for r in h if PRIVATE_FIELDS & r.keys()]
+    bad += [f"brief {r.get('key')}" for r in b if r['section'] in PRIVATE_SECTIONS or r.get('tone') == 'private']
+    bad += [f"snapshot {r.get('id')}" for r in s if r['id'] in PRIVATE_IDS]
+    if bad:
+        print('公開版仍含私人內容：\n' + '\n'.join(bad))
+        sys.exit(1)
+    print('公開版檢查通過')
 
 
 def main(src, dst):
@@ -21,7 +39,7 @@ def main(src, dst):
     problems = []
     for r in b:
         if r['section'] == 'news':
-            continue  # 一般新聞剛好報導到國巨時可以保留
+            continue  # 一般新聞剛好報導到持股公司時可以保留
         txt = ' '.join(str(r.get(k, '')) for k in ('tag', 'text', 'a', 'b'))
         if LEAK.search(txt):
             problems.append(f"brief {r['key']}: {LEAK.search(txt).group()}")
@@ -40,4 +58,7 @@ def main(src, dst):
 
 
 if __name__ == '__main__':
-    main(*sys.argv[1:3])
+    if sys.argv[1] == '--check':
+        check(sys.argv[2])
+    else:
+        main(*sys.argv[1:3])
