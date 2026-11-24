@@ -46,6 +46,7 @@ def corr(h, a, b, n=20):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('history')
+    ap.add_argument('--cost', type=float, help='舊參數，保留相容；成本改讀私人設定，這個值會被忽略')
     a = ap.parse_args()
     h = sorted(json.load(open(a.history)), key=lambda r: r['date'])
     out = []
