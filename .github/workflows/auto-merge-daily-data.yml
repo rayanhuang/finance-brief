@@ -1,0 +1,52 @@
+name: 自動合併每日早報資料 PR
+
+# 只合併「標題以『更新財經早報資料』開頭、由 repo 擁有者從本 repo 分支開出、只改動 data/ 三個 JSON、且不含私人欄位」的 PR。
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  pages: write
+
+jobs:
+  merge:
+    if: >-
+      startsWith(github.event.pull_request.title, '更新財經早報資料') &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: 檢查只改動 data/ 三個 JSON，且都是合法、不含私人內容的公開版
+        run: |
+          set -euo pipefail
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed.txt
+          cat changed.txt
+          test -s changed.txt
+          if grep -vxE 'data/(brief|snapshot|history)\.json' changed.txt; then
+            echo "有 data/ 三個 JSON 以外的檔案，不自動合併"; exit 1
+          fi
+          python3 - <<'PY'
+          import json
+          h = json.load(open('data/history.json')); b = json.load(open('data/brief.json')); s = json.load(open('data/snapshot.json'))
+          bad = {'yageo', 'e981a', 'a981_buy', 'a981_sell', 'note_p'}
+          assert not any(bad & r.keys() for r in h), '公開版含私人欄位'
+          assert not any(r['section'] in ('etf', 'yageo') for r in b), '公開版含私人段落'
+          assert not any(r['id'] in ('tw2327', 'e00981a') for r in s), '公開版含私人行情'
+          print('檢查通過')
+          PY
+      - name: 合併
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --squash --repo "${{ github.repository }}" --match-head-commit "${{ github.event.pull_request.head.sha }}"
+      - name: 重新部署公開網站
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"
