@@ -66,7 +66,8 @@ function chgPill(r){
   const c=r.chg; if(c==null) return '';
   let up,txt;
   if(r.id==='twd'){up=c<0;txt=(c<0?'升':'貶')+' '+Math.abs(c*100).toFixed(1)+' 分';}
-  else if(r.unit==='%'&&r.chgKind==='abs'){up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.round(Math.abs(c)*100)+' bp';}
+  else if(r.unit==='%'&&r.chgKind==='abs'&&/^us\d/.test(r.id)){up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.round(Math.abs(c)*100)+' bp';}
+  else if(r.unit==='%'&&r.chgKind==='abs'){up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.abs(c).toFixed(1)+' 個百分點';}
   else if(r.chgKind==='pct'){up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.abs(c).toFixed(2)+'%';}
   else {up=c>0;txt=(c>0?'▲':c<0?'▼':'')+Math.abs(c).toLocaleString('en-US');}
   const [col,bg]=c===0?['var(--neu)','var(--neubg)']:up?['var(--up)','var(--upbg)']:['var(--dn)','var(--dnbg)'];
