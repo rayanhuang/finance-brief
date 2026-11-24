@@ -36,6 +36,13 @@ done
 PR=$(gh api -X POST repos/$REPO/pulls -f title="更新財經早報資料（$MD）" -f head="$BR" -f base=main \
   -f body="每日自動更新 data/ 三份公開資料；盤中、估算與約值已標註在 brief 的資料缺口與 history 的 note。" --jq '.number' 2>&1) || { echo "FAIL 建立 PR：$PR"; exit 1; }
 URL="https://github.com/$REPO/pull/$PR"
+# 先等 GitHub Actions「自動合併每日早報資料 PR」合併（最多約 2 分鐘）
+for i in $(seq 1 12); do
+  sleep 10
+  m=$(gh api repos/$REPO/pulls/$PR --jq '.merged' 2>/dev/null)
+  [ "$m" = "true" ] && { echo "MERGED $URL"; exit 0; }
+done
+# 沒有被自動合併時，才自行檢查後合併
 state=""; head=""
 for i in 1 2 3 4; do
   sleep 10
@@ -49,4 +56,6 @@ bad=$(gh api repos/$REPO/pulls/$PR/files --jq '[.[].filename|select(startswith("
 fails=$(gh api repos/$REPO/commits/$SHA/check-runs --jq '[.check_runs[]|select(.conclusion=="failure" or .conclusion=="cancelled" or .conclusion=="timed_out")]|length')
 [ "$fails" = "0" ] || { echo "FAIL 檢查未通過 $URL"; exit 1; }
 msg=$(gh api -X PUT repos/$REPO/pulls/$PR/merge -f merge_method=squash -f sha="$SHA" --jq '.merged' 2>&1)
-[ "$msg" = "true" ] && echo "MERGED $URL" || echo "FAIL 合併：$msg $URL"
+if [ "$msg" = "true" ]; then echo "MERGED $URL"
+elif [ "$(gh api repos/$REPO/pulls/$PR --jq '.merged' 2>/dev/null)" = "true" ]; then echo "MERGED $URL"
+else echo "FAIL 合併：$msg $URL"; fi
