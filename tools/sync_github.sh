@@ -17,6 +17,10 @@ PY
 # 執行環境有指定開發分支時用 FB_BRANCH，否則每天開新分支
 BR="${FB_BRANCH:-daily-data-$(TZ=Asia/Taipei date +%Y%m%d-%H%M)}"
 git fetch -q origin main && git checkout -q -B "$BR" origin/main || { echo "FAIL git fetch/checkout"; exit 1; }
+# 固定的開發分支前一天已被 squash 合併：把舊分支併進來（保留 main 的內容），讓這次推送是快轉，不需要強制覆寫
+if git fetch -q origin "$BR" 2>/dev/null; then
+  git -c user.name="${GIT_AUTHOR_NAME:-Claude}" -c user.email="${GIT_AUTHOR_EMAIL:-noreply@anthropic.com}" merge -q -s ours --no-edit FETCH_HEAD || { echo "FAIL 無法併入既有分支 $BR"; exit 1; }
+fi
 cp "$SRC"/brief.json "$SRC"/snapshot.json "$SRC"/history.json data/
 git add data/
 if git diff --cached --quiet; then echo "NOCHANGE"; exit 0; fi
