@@ -77,12 +77,21 @@ def main():
         tz = dt.timezone(dt.timedelta(seconds=m.get('gmtoffset', 0)))
         pts = [(dt.datetime.fromtimestamp(t, tz).date().isoformat(), c)
                for t, c in zip(r.get('timestamp', []), r['indicators']['quote'][0]['close']) if c is not None]
+        # Yahoo 有時最後一根日 K 的收盤是空值（例如 ^TWII），這時改用 meta 的最新成交價補上那一天，
+        # 不然會把前一天的收盤當成今天（2026-11-25 加權指數就因此顯示舊值）
+        rmp, rmt = m.get('regularMarketPrice'), m.get('regularMarketTime')
+        if rmp is not None and rmt:
+            rd = dt.datetime.fromtimestamp(rmt, tz).date().isoformat()
+            if pts and rd > pts[-1][0]:
+                pts.append((rd, rmp))
         if len(pts) < 2:
             continue
         (d0, c0), (d1, c1) = pts[-2], pts[-1]
         q = {'value': round(c1, 4), 'prev': round(c0, 4), 'date': d1, 'src': 'Yahoo ' + sym}
         end = m.get('currentTradingPeriod', {}).get('regular', {}).get('end', 0)
-        if time.time() < end or m.get('instrumentType') == 'CRYPTOCURRENCY':
+        today_mkt = dt.datetime.now(tz).date().isoformat()
+        start = m.get('currentTradingPeriod', {}).get('regular', {}).get('start', 0)
+        if (d1 == today_mkt and start <= time.time() < end) or m.get('instrumentType') == 'CRYPTOCURRENCY':
             q['partial'] = True  # 盤中或 24 小時市場：不是收盤價
         if key in ('us10y', 'us30y'):
             q['chg_bp'] = round((c1 - c0) * 100, 1)
