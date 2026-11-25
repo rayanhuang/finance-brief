@@ -87,7 +87,7 @@ def main():
         if len(pts) < 2:
             continue
         (d0, c0), (d1, c1) = pts[-2], pts[-1]
-        q = {'value': round(c1, 4), 'prev': round(c0, 4), 'date': d1, 'src': 'Yahoo ' + sym}
+        q = {'value': round(c1, 4), 'prev': round(c0, 4), 'prev_date': d0, 'date': d1, 'src': 'Yahoo ' + sym}
         end = m.get('currentTradingPeriod', {}).get('regular', {}).get('end', 0)
         today_mkt = dt.datetime.now(tz).date().isoformat()
         start = m.get('currentTradingPeriod', {}).get('regular', {}).get('start', 0)
@@ -115,6 +115,43 @@ def main():
             lines.append('法人(億) ' + ' '.join(f'{k} {v:+,.2f}' for k, v in inst.items()) + f' {ymd}')
     except Exception as e:
         lines.append(f'法人：抓取失敗（{type(e).__name__}）')
+    # Yahoo 偶爾漏掉台股某天的收盤（例如 2026-11-24 加權與部分 ETF 是空值），
+    # 改用證交所每日收盤行情（MI_INDEX）補正最近一個已收盤交易日的台股項目
+    try:
+        ymd = prev.strftime('%Y%m%d') if not is_open(today) or tpe.hour < 15 else today.strftime('%Y%m%d')
+        d = f'{ymd[:4]}-{ymd[4:6]}-{ymd[6:]}'
+        j = get(f'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?date={ymd}&type=ALLBUT0999&response=json', timeout=20)
+        num = lambda s: float(str(s).replace(',', '')) if str(s).replace(',', '').replace('.', '').isdigit() else None
+        sign = lambda s: -1 if '-' in str(s) else 1
+        tw = {}
+        for t in j.get('tables', []) if j.get('stat') == 'OK' else []:
+            title = t.get('title') or ''
+            for r in t.get('data', []):
+                if '價格指數' in title and r[0] == '發行量加權股價指數' and num(r[1]):
+                    tw['^TWII'] = (num(r[1]), sign(r[2]) * (num(r[3]) or 0))
+                elif '每日收盤行情' in title and num(r[8]):
+                    tw[r[0].strip()] = (num(r[8]), sign(r[9]) * (num(r[10]) or 0))
+        fixed = []
+        for key, sym in YAHOO:  # noqa
+            code = '^TWII' if sym == '^TWII' else sym[:-3] if sym.endswith('.TW') else None
+            q = out['quotes'].get(key)
+            if code not in tw:
+                continue
+            c, chg = tw[code]
+            if q and q.get('date', '') > d:  # Yahoo 已有今天盤中值：只修正它比較的前一日收盤
+                if q.get('prev_date') != d and 'chg_pct' in q:
+                    q.update(prev=c, prev_date=d, chg_pct=round((q['value'] / c - 1) * 100, 2))
+                    fixed.append(f'{key} 前收改為 {d} 的 {c:,}（盤中 {q["chg_pct"]:+.2f}）')
+                continue
+            if q and q.get('date') == d and not q.get('partial') and abs(q['value'] - c) < 1e-6:
+                continue
+            p = c - chg
+            out['quotes'][key] = {'value': c, 'prev': round(p, 4), 'date': d, 'src': '證交所 MI_INDEX', 'chg_pct': round((c / p - 1) * 100, 2)}
+            fixed.append(f'{key} {c:,}（{(c / p - 1) * 100:+.2f}）')
+        if fixed:
+            lines.append(f'證交所收盤補正 {d}（Yahoo 缺值或不同，以證交所為準）：' + '、'.join(fixed))
+    except Exception as e:
+        lines.append(f'證交所收盤補正：抓取失敗（{type(e).__name__}）')
     try:
         g = get('https://api.alternative.me/fng/?limit=2')['data']
         out['quotes']['fng'] = {'value': int(g[0]['value']), 'chg': int(g[0]['value']) - int(g[1]['value']),
